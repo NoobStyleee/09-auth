@@ -1,86 +1,92 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import toast from 'react-hot-toast';
-import { useAuthStore } from '../../../../lib/store/authStore';
-import { updateMe } from '../../../../lib/api/clientApi';
 import css from './EditProfilePage.module.css';
-
-export default function EditProfilePage() {
+import { updateMe } from '@/lib/api/clientApi';
+import { useState, useEffect } from 'react';
+import { getMe } from '@/lib/api/clientApi';
+import { User } from '@/types/user';
+import { ApiError } from '../../../../types/note';
+import { useAuthStore } from '@/lib/store/authStore';
+import Image from 'next/image';
+type NoteFormValues = {
+  avatar?: string;
+  email?: string;
+  username: string;
+};
+export default function Edit() {
+  const [error, setError] = useState('');
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
-  
-  const [username, setUsername] = useState('');
-  const [isPending, setIsPending] = useState(false);
+  const setUser = useAuthStore(state => state.setUser);
+  const [userData, setUserData] = useState<User | null>(null);
 
   useEffect(() => {
-    if (user) {
-      setUsername(user.username);
-    }
-  }, [user]);
-
-  if (!user) return null;
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!username.trim()) {
-      toast.error('Username cannot be empty');
-      return;
+    async function load() {
+      const data = await getMe();
+      setUserData(data);
     }
 
-    setIsPending(true);
+    load();
+  }, []);
+  const handleSubmit = async (formData: FormData) => {
+    const values = Object.fromEntries(formData) as NoteFormValues;
+
     try {
-      const updatedUser = await updateMe({ username });
-      setUser(updatedUser);
-      toast.success('Profile updated successfully!');
-      router.push('/profile');
+      const user = await updateMe(values);
+      console.log(values);
+      if (user) {
+        setUser(user);
+        router.push('/profile');
+      } else {
+        setError('Invalid email or password');
+      }
     } catch (error) {
-      toast.error('Failed to update profile');
-      console.error(error);
-    } finally {
-      setIsPending(false);
+      setError(
+        (error as ApiError).response?.data?.error ??
+          (error as ApiError).message ??
+          'Oops... some error'
+      );
     }
   };
-
-  const handleCancel = () => {
-    router.push('/profile');
-  };
-
+  const avatar = userData?.avatar?.trim()
+    ? userData?.avatar
+    : '/default-avatar.png';
   return (
     <main className={css.mainContent}>
       <div className={css.profileCard}>
         <h1 className={css.formTitle}>Edit Profile</h1>
 
         <Image
-          src={user.avatar}
-          alt="User Avatar"
+          src={avatar}
+          alt={userData?.username || 'User Avatar'}
           width={120}
           height={120}
           className={css.avatar}
         />
 
-        <form className={css.profileInfo} onSubmit={handleSubmit}>
+        <form className={css.profileInfo} action={handleSubmit}>
           <div className={css.usernameWrapper}>
-            <label htmlFor="username">Username:</label>
+            <label htmlFor="username">Username:{userData?.username}</label>
             <input
               id="username"
               type="text"
+              name="username"
+              defaultValue={userData?.username}
               className={css.input}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isPending}
             />
           </div>
 
-          <p>Email: {user.email}</p>
+          <p>Email: {userData?.email}</p>
 
           <div className={css.actions}>
-            <button type="submit" className={css.saveButton} disabled={isPending}>
-              {isPending ? 'Saving...' : 'Save'}
+            <button type="submit" className={css.saveButton}>
+              Save
             </button>
-            <button type="button" className={css.cancelButton} onClick={handleCancel} disabled={isPending}>
+            <button
+              type="button"
+              className={css.cancelButton}
+              onClick={() => {
+                router.push('/profile');
+              }}>
               Cancel
             </button>
           </div>
