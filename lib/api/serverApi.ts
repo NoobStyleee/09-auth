@@ -1,7 +1,20 @@
+import { AxiosResponse } from 'axios';
 import { api } from './api';
 import { cookies } from 'next/headers';
 import { Note } from '../../types/note';
 import { User } from '../../types/user';
+
+interface FetchNotesParams {
+  page: number;
+  perPage?: number;
+  search?: string;
+  tag?: string;
+}
+
+interface NotesResponse {
+  notes: Note[];
+  totalPages: number;
+}
 
 const getAuthHeaders = async () => {
   const cookieStore = await cookies();
@@ -12,9 +25,9 @@ const getAuthHeaders = async () => {
   };
 };
 
-export const fetchNotes = async (params: any): Promise<any> => {
+export const fetchNotes = async (params: FetchNotesParams): Promise<NotesResponse> => {
   const config = await getAuthHeaders();
-  const { data } = await api.get('/notes', { ...config, params });
+  const { data } = await api.get<NotesResponse>('/notes', { ...config, params });
   return data;
 };
 
@@ -24,14 +37,9 @@ export const fetchNoteById = async (id: string): Promise<Note> => {
   return data;
 };
 
-export const checkSession = async (): Promise<User | null> => {
-  try {
-    const config = await getAuthHeaders();
-    const { data } = await api.get<User | null>('/auth/session', config);
-    return data;
-  } catch {
-    return null;
-  }
+export const checkSession = async (): Promise<AxiosResponse<User | null>> => {
+  const config = await getAuthHeaders();
+  return api.get<User | null>('/auth/session', config);
 };
 
 export const getMe = async (): Promise<User> => {
@@ -42,6 +50,7 @@ export const getMe = async (): Promise<User> => {
   } catch (error) {
     return {
       _id: 'fallback',
+      id: 'fallback',
       email: 'user@example.com',
       username: 'Authorized User',
       name: 'Authorized User',

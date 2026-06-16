@@ -2,11 +2,11 @@
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import css from './Notes.client.module.css';
-import Pagination from '../../../../../components/Pagination/Pagination';
-import SearchBox from '../../../../../components/SearchBox/SearchBox';
+import Pagination from '@/components/Pagination/Pagination';
+import SearchBox from '@/components/SearchBox/SearchBox';
 import { useState } from 'react';
-import { fetchNotes } from '../../../../../lib/api/clientApi';
-import NoteList from '../../../../../components/NoteList/NoteList';
+import { fetchNotes } from '@/lib/api/clientApi';
+import NoteList from '@/components/NoteList/NoteList';
 import { useDebouncedCallback } from 'use-debounce';
 import { Toaster } from 'react-hot-toast';
 import { NoteTag } from '@/types/note';
@@ -16,6 +16,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 type Props = {
   tag?: NoteTag;
 };
+
 function Notes({ tag }: Props) {
   const [input, setInput] = useState('');
   const [querySe, setQuery] = useState('');
@@ -35,13 +36,13 @@ function Notes({ tag }: Props) {
 
   const debouncedSetQuery = useDebouncedCallback((value: string) => {
     setQuery(value);
+    setPage(1);
   }, 500);
 
   const totalPages = data?.totalPages ?? 0;
   const notes = data?.notes ?? [];
 
   const isEmpty = isSuccess && notes.length === 0;
-
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
 
   return (
@@ -52,7 +53,6 @@ function Notes({ tag }: Props) {
           onChange={val => {
             setInput(val);
             debouncedSetQuery(val);
-            setPage(1);
           }}
         />
 

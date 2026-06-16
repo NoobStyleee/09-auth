@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { useNoteStore } from '../../lib/store/noteStore';
-import { createNote } from '../../lib/api/clientApi'; 
+import { useNoteStore } from '@/lib/store/noteStore';
+import { createNote } from '@/lib/api/clientApi'; 
+import { NoteTag } from '@/types/note';
 import css from './NoteForm.module.css';
 
 export default function NoteForm() {
@@ -49,7 +50,13 @@ export default function NoteForm() {
       return;
     }
 
-    mutate(draft as any);
+    const noteData = {
+      title: draft.title.trim(),
+      content: draft.content.trim(),
+      tag: draft.tag as NoteTag,
+    };
+
+    mutate(noteData);
   };
 
   const handleCancel = () => {
