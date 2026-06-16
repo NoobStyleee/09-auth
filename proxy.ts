@@ -1,77 +1,74 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { parse } from 'cookie';
+import { checkSession } from '@/lib/api/serverApi';
 
 const privateRoutes = ['/profile', '/notes'];
 const publicRoutes = ['/sign-in', '/sign-up'];
 
-export default async function proxy(request: NextRequest) {
-  const { nextUrl, cookies } = request;
-  const { pathname } = nextUrl;
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get('accessToken')?.value;
+  const refreshToken = cookieStore.get('refreshToken')?.value;
 
-  if (
-    pathname.includes('.') || 
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/api')
-  ) {
-    return NextResponse.next();
-  }
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+  const isPrivateRoute = privateRoutes.some(route =>
+    pathname.startsWith(route)
+  );
 
-  let accessToken = cookies.get('accessToken')?.value;
-  const refreshToken = cookies.get('refreshToken')?.value;
+  if (!accessToken) {
+    if (refreshToken) {
+      const data = await checkSession();
+      const setCookie = data.headers['set-cookie'];
 
-  const isPrivateRoute = privateRoutes.some((route) => pathname.startsWith(route));
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
-
-  let newCookiesString: string | null = null;
-
-  if (!accessToken && refreshToken) {
-    try {
-      const apiUrl = new URL('/api/auth/session', request.url);
-      
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          Cookie: request.headers.get('cookie') || '',
-        },
-      });
-
-      if (response.ok) {
-        const setCookieHeaders = response.headers.getSetCookie();
-        
-        if (setCookieHeaders.length > 0) {
-          newCookiesString = setCookieHeaders.join(', ');
-          
-          accessToken = 'true'; 
+      if (setCookie) {
+        const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
+        for (const cookieStr of cookieArray) {
+          const parsed = parse(cookieStr);
+          const options = {
+            expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
+            path: parsed.Path,
+            maxAge: Number(parsed['Max-Age']),
+          };
+          if (parsed.accessToken)
+            cookieStore.set('accessToken', parsed.accessToken, options);
+          if (parsed.refreshToken)
+            cookieStore.set('refreshToken', parsed.refreshToken, options);
+        }
+        if (isPublicRoute) {
+          return NextResponse.redirect(new URL('/', request.url), {
+            headers: {
+              Cookie: cookieStore.toString(),
+            },
+          });
+        }
+        if (isPrivateRoute) {
+          return NextResponse.next({
+            headers: {
+              Cookie: cookieStore.toString(),
+            },
+          });
         }
       }
-    } catch (error) {
-      console.error('Failed to silently refresh session in middleware:', error);
+    }
+    if (isPublicRoute) {
+      return NextResponse.next();
+    }
+
+    if (isPrivateRoute) {
+      return NextResponse.redirect(new URL('/sign-in', request.url));
     }
   }
 
-  const isAuth = !!accessToken;
-
-  if (isPrivateRoute && !isAuth) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+  if (isPublicRoute) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
-
-  if (isPublicRoute && isAuth) {
-    const response = NextResponse.redirect(new URL('/', request.url));
-    if (newCookiesString) {
-      response.headers.set('Set-Cookie', newCookiesString);
-    }
-    return response;
+  if (isPrivateRoute) {
+    return NextResponse.next();
   }
-
-  const response = NextResponse.next();
-  
-  if (newCookiesString) {
-    response.headers.set('Set-Cookie', newCookiesString);
-  }
-
-  return response;
 }
 
 export const config = {
-  matcher: ['/((?!.*\\.).*)'],
+  matcher: ['/profile/:path*', '/notes/:path*', '/sign-in', '/sign-up'],
 };
