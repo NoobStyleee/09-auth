@@ -54,11 +54,11 @@ export const checkSession = async (): Promise<User | null> => {
 };
 
 export const getMe = async (): Promise<User> => {
-  const { data } = await api.get<User>('/auth/session');
+  const { data } = await api.get<User>('/users/me');
   return data;
 };
 
 export const updateMe = async (userData: Partial<User>): Promise<User> => {
-  const { data } = await api.patch<User>('/auth/session', userData);
+  const { data } = await api.patch<User>('/users/me', userData);
   return data;
 };

@@ -10,9 +10,9 @@ import ErrorMessage from '@/components/ErrorMessage/ErrorMessage';
 import Pagination from '@/components/Pagination/Pagination';
 import SearchBox from '@/components/SearchBox/SearchBox';
 import NoteList from '@/components/NoteList/NoteList';
-import { fetchNotes } from "@/lib/api";
 import { notifyNoNote } from "@/lib/toast";
 import css from "./Notes.client.module.css"; 
+import {fetchNotes} from '@/lib/api/clientApi';
 
 interface NotesClientProps {
   tag?: string;
