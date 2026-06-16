@@ -1,5 +1,5 @@
 'use client';
-import css from './SignUpPage.module.css';
+import css from './SignInPage.module.css';
 type NoteFormValues = {
   email: string;
   password: string;
