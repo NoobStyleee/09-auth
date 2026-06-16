@@ -1,55 +1,71 @@
-import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
-import {fetchNotes} from '@/lib/api/clientApi';
-import NotesClient from './Notes.client'; 
+import css from '../[...slug]/Notes.client.module.css';
+import { fetchNotes } from '../../../../../lib/api/serverApi';
+import NotesClient from './Notes.client';
 import type { Metadata } from 'next';
+import {
+  HydrationBoundary,
+  QueryClient,
+  dehydrate,
+} from '@tanstack/react-query';
+import { NoteTag } from '@/types/note';
+type Props = {
+  params: { slug: string[] };
+};
+type GenerateMetadataProps = {
+  params: Promise<{
+    slug: string[];
+  }>;
+};
 
-interface PageProps {
-  params: Promise<{ slug: string[] }>;
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const resolvedParams = await params;
-  const currentFilter = resolvedParams.slug?.[0] || 'all';
-  const capitalizedFilter = currentFilter.charAt(0).toUpperCase() + currentFilter.slice(1);
-
-  const title = `${capitalizedFilter} Notes | NoteHub`;
-  const description = `View and manage all your notes categorized under the ${currentFilter} filter.`;
-
+export async function generateMetadata({
+  params,
+}: GenerateMetadataProps): Promise<Metadata> {
+  const { slug } = await params;
   return {
-    title,
-    description,
+    title: `Note: ${slug.join('/')}`,
+    description: `Note by: ${slug.join('/')}`,
     openGraph: {
-      title,
-      description,
-      url: `https://notehub.com/notes/filter/${currentFilter}`,
+      title: `Note: ${slug.join('/')}`,
+      description: `Note by: ${slug.join('/')}`,
+      url: `/notes/filter/${slug.join('/')}`,
+      siteName: 'NoteHub',
       images: [
         {
           url: 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg',
           width: 1200,
           height: 630,
-          alt: `${capitalizedFilter} Notes Preview`,
+          alt: 'NoteHub',
         },
       ],
+      type: 'article',
     },
   };
 }
 
-export default async function FilteredNotesPage({ params }: PageProps) {
-  const resolvedParams = await params;
-  
-  const slugArray = resolvedParams.slug;
-  const currentTag = slugArray && slugArray[0] !== 'all' ? slugArray[0] : undefined;
-
+export default async function NotesPage({ params }: Props) {
   const queryClient = new QueryClient();
 
+  const { slug } = await params;
+
+  const tag: NoteTag | undefined =
+    slug?.[0] && slug?.[0] !== 'all' ? (slug?.[0] as NoteTag) : undefined;
+
   await queryClient.prefetchQuery({
-    queryKey: ['notes', 1, '', currentTag], 
-    queryFn: () => fetchNotes({ page: 1, search: undefined, perPage: 12, tag: currentTag }),
+    queryKey: ['notes', 1, tag],
+    queryFn: () =>
+      fetchNotes({
+        page: 1,
+        search: undefined,
+        perPage: 12,
+        tag: tag,
+      }),
   });
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <NotesClient tag={currentTag} />
-    </HydrationBoundary>
+    <div className={css.app}>
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <NotesClient tag={tag} />
+      </HydrationBoundary>
+    </div>
   );
 }

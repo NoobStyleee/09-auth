@@ -1,34 +1,32 @@
 'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link"; 
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useDebouncedCallback } from "use-debounce";
-import { Toaster } from "react-hot-toast";
-import Loader from '@/components/Loader/Loader';
-import ErrorMessage from '@/components/ErrorMessage/ErrorMessage';
-import Pagination from '@/components/Pagination/Pagination';
-import SearchBox from '@/components/SearchBox/SearchBox';
-import NoteList from '@/components/NoteList/NoteList';
-import { notifyNoNote } from "@/lib/toast";
-import css from "./Notes.client.module.css"; 
-import {fetchNotes} from '@/lib/api/clientApi';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import css from './Notes.client.module.css';
+import Pagination from '../../../../../components/Pagination/Pagination';
+import SearchBox from '../../../../../components/SearchBox/SearchBox';
+import { useState } from 'react';
+import { fetchNotes } from '../../../../../lib/api/clientApi';
+import NoteList from '../../../../../components/NoteList/NoteList';
+import { useDebouncedCallback } from 'use-debounce';
+import { Toaster } from 'react-hot-toast';
+import { NoteTag } from '@/types/note';
+import Link from 'next/link';
+import { useAuthStore } from '@/lib/store/authStore';
 
-interface NotesClientProps {
-  tag?: string;
-}
-
-function NotesClient({ tag }: NotesClientProps) {
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+type Props = {
+  tag?: NoteTag;
+};
+function Notes({ tag }: Props) {
+  const [input, setInput] = useState('');
+  const [querySe, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError, isSuccess } = useQuery({
-    queryKey: ["notes", page, debouncedQuery, tag],
+  const { data, isLoading, isSuccess, isFetching } = useQuery({
+    queryKey: ['notes', { page, querySe, tag }],
     queryFn: () =>
       fetchNotes({
         page,
-        search: debouncedQuery || undefined,
+        search: querySe || undefined,
         perPage: 12,
         tag: tag,
       }),
@@ -36,46 +34,46 @@ function NotesClient({ tag }: NotesClientProps) {
   });
 
   const debouncedSetQuery = useDebouncedCallback((value: string) => {
-    setDebouncedQuery(value);
+    setQuery(value);
   }, 500);
 
-  useEffect(() => {
-    if (data?.notes && data.notes.length === 0) {
-      notifyNoNote();
-    }
-  }, [data]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedQuery, tag]);
-
   const totalPages = data?.totalPages ?? 0;
+  const notes = data?.notes ?? [];
+
+  const isEmpty = isSuccess && notes.length === 0;
+
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
 
   return (
     <div className={css.app}>
       <header className={css.toolbar}>
         <SearchBox
-          value={searchInput}
-          onChange={(val) => {
-            setSearchInput(val);
+          value={input}
+          onChange={val => {
+            setInput(val);
             debouncedSetQuery(val);
+            setPage(1);
           }}
         />
 
         {isSuccess && totalPages > 1 && (
           <Pagination totalPages={totalPages} page={page} setPage={setPage} />
         )}
-
-        <Link href="/notes/action/create" className={css.button}>
+        <Link className={css.button} href="/notes/action/create">
           Create note +
         </Link>
       </header>
-
-      {isLoading && <Loader />}
-      {isError && <ErrorMessage />}
-
-      {isSuccess && data && data.notes.length > 0 && (
-        <NoteList notes={data.notes} />
+      {!isAuthenticated ? (
+        <p>Please login</p>
+      ) : isEmpty ? (
+        <p>
+          {tag || querySe ? 'No notes found for this filter' : 'No notes yet'}
+        </p>
+      ) : (
+        !isLoading &&
+        !isFetching &&
+        isSuccess &&
+        data.notes.length > 0 && <NoteList notes={data.notes} />
       )}
 
       <Toaster position="top-center" reverseOrder={false} />
@@ -83,4 +81,4 @@ function NotesClient({ tag }: NotesClientProps) {
   );
 }
 
-export default NotesClient;
+export default Notes;
