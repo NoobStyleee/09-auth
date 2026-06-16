@@ -9,6 +9,12 @@ export interface Note {
   tag: NoteTag;
 }
 
+export interface NoteDraft {
+  title: string;
+  content: string;
+  tag: string;
+}
+
 export interface ApiError {
   message: string;
   response?: {

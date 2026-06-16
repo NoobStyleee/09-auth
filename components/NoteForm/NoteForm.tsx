@@ -49,7 +49,7 @@ export default function NoteForm() {
       return;
     }
 
-    mutate(draft);
+    mutate(draft as any);
   };
 
   const handleCancel = () => {
